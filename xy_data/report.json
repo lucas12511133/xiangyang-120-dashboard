@@ -1,0 +1,50 @@
+{
+  "n_grids": 1716,
+  "n_stations": 8,
+  "total_demand": 20834,
+  "generated_at": "2026-11-13 09:55:29",
+  "time_blocks": [
+    "周一-周四",
+    "周五",
+    "周六-周日"
+  ],
+  "time_taken_sec": 341.8,
+  "same_grid_estimation": {
+    "method": "empirical_median_of_real_same_grid_calls",
+    "not_api_observation": true,
+    "grid_to_grid_rows": 20592,
+    "station_by_weekday_rows": 672,
+    "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+    "validation": {
+      "n": 997,
+      "MAE": 2.341165162153126,
+      "RMSE": 3.718393204682561,
+      "Bias": -0.3888582413908394,
+      "R2": -0.12351368794858608,
+      "observed10_pct": 94.28284854563691,
+      "predicted10_pct": 100.0
+    }
+  },
+  "files": [
+    "tab1_station_overview.json",
+    "tab2_lp_results.json",
+    "tab3_remove_station.json",
+    "tab4_add_station.json",
+    "stations.json",
+    "grids.json"
+  ],
+  "spatial_scope": {
+    "kind": "bbox_then_cells",
+    "anchor_lat": 31.93,
+    "anchor_lng": 111.88,
+    "step_lat": 0.007186489399928136,
+    "step_lng": 0.00847415309638589,
+    "bounds": {
+      "lat_min": 31.93,
+      "lat_max": 32.16,
+      "lng_min": 111.88,
+      "lng_max": 112.32
+    },
+    "geometry_sha256": "1d4d0c5c67ab0bd3d07443c5ef6e9b5aab27fdf939b99f84070be8602605c51d"
+  }
+}

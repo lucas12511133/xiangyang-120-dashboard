@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>襄阳120急救站点管理指导系统</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;}
+body{background:#f0f2f5;color:#333;}
+.header{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;padding:20px 30px;}
+.header h1{font-size:22px;font-weight:600;}
+.header p{font-size:13px;opacity:.8;margin-top:4px;}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e0e0e0;padding:0 20px;position:sticky;top:0;z-index:100;}
+.tab{padding:14px 24px;cursor:pointer;font-size:14px;font-weight:500;color:#666;border-bottom:3px solid transparent;transition:all .2s;}
+.tab:hover{color:#1a237e;background:#f5f5f5;}
+.tab.active{color:#1a237e;border-bottom-color:#1a237e;}
+.tab-content{display:none;padding:20px;max-width:1400px;margin:0 auto;}
+.tab-content.active{display:block;}
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1);padding:20px;margin-bottom:16px;}
+.card h3{font-size:15px;font-weight:600;margin-bottom:12px;color:#1a237e;}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;}
+.stat-box{background:#f8f9ff;border-radius:6px;padding:14px;text-align:center;}
+.stat-box .num{font-size:24px;font-weight:700;color:#1a237e;}
+.stat-box .label{font-size:12px;color:#888;margin-top:4px;}
+select,input,button{padding:6px 12px;border:1px solid #ddd;border-radius:4px;font-size:13px;}
+button{background:#1a237e;color:#fff;border:none;cursor:pointer;}
+button:hover{background:#283593;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid #eee;}
+th{background:#f8f9ff;font-weight:600;color:#1a237e;}
+tr:hover{background:#f5f5ff;}
+.chart-container{position:relative;height:280px;width:100%;}
+.map-container{height:420px;border-radius:6px;border:1px solid #ddd;z-index:1;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;}
+.badge-ok{background:#e8f5e9;color:#2e7d32;}
+.badge-warn{background:#fff3e0;color:#e65100;}
+.badge-bad{background:#ffebee;color:#c62828;}
+.transfer-bar{height:18px;background:#e3f2fd;border-radius:3px;margin:2px 0;overflow:hidden;}
+.transfer-fill{height:100%;background:#1565c0;border-radius:3px;transition:width .5s;}
+.candidate-row{cursor:pointer;}
+.candidate-row:hover{background:#e8eaf6;}
+.selected{cursor:pointer;}
+
+@media(max-width:768px){
+  .two-col,.three-col{grid-template-columns:1fr;}
+  .tabs{overflow-x:auto;}
+  .tab{font-size:13px;padding:12px 16px;white-space:nowrap;}
+}
+#loading{display:flex;justify-content:center;align-items:center;height:300px;font-size:18px;color:#888;}
+.loading-dot{animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚑 襄阳120急救站点管理指导系统</h1>
+  <p>现有站点总览 · 推荐选址 · 拆站分析 · 加站评估</p>
+</div>
+
+<div class="tabs" id="tabNav">
+  <div class="tab active" onclick="switchTab('overview')">📊 现有站点总览</div>
+  <div class="tab" onclick="switchTab('lp')">🎯 推荐站点</div>
+  <div class="tab" onclick="switchTab('remove')">🗑️ 拆站分析</div>
+  <div class="tab" onclick="switchTab('add')">➕ 加站评估</div>
+</div>
+
+<div id="loading"><span>加载数据中<span class="loading-dot">.</span><span class="loading-dot">.</span><span class="loading-dot">.</span></span></div>
+
+<!-- ==================== Tab1: 现有站点总览 ==================== -->
+<div id="tab-overview" class="tab-content active"></div>
+
+<!-- ==================== Tab2: 推荐站点 ==================== -->
+<div id="tab-lp" class="tab-content"></div>
+
+<!-- ==================== Tab3: 拆站分析 ==================== -->
+<div id="tab-remove" class="tab-content"></div>
+
+<!-- ==================== Tab4: 加站评估 ==================== -->
+<div id="tab-add" class="tab-content"></div>
+
+<script>
+let DATA = {};
+let GRID_LOOKUP = [];
+
+async function init() {
+  try {
+    const [overview, lp, remove, add, stations, grids, gridLookup] = await Promise.all([
+      fetch('tab1_station_overview.json').then(r=>r.json()),
+      fetch('tab2_lp_results.json').then(r=>r.json()),
+      fetch('tab3_remove_station.json').then(r=>r.json()),
+      fetch('tab4_add_station.json').then(r=>r.json()),
+      fetch('stations.json').then(r=>r.json()),
+      fetch('grids.json').then(r=>r.json()),
+      fetch('grid_lookup.json').then(r=>r.json()),
+    ]);
+    DATA = { overview, lp, remove, add, stations, grids };
+    GRID_LOOKUP = gridLookup;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('tabNav').style.display = 'flex';
+    renderOverview();
+    renderLP();
+    renderRemove();
+    renderAdd();
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `
+      <div style="text-align:center;color:#c62828;">
+        <h3>❌ 数据加载失败</h3>
+        <p style="margin-top:8px;font-size:14px;">${e.message}</p>
+        <p style="margin-top:4px;font-size:12px;color:#999;">
+          请确保通过服务器访问 (python v3_dashboard_server.py)
+        </p>
+      </div>`;
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  // 地图容器从display:none变成显示后，强制刷新尺寸
+  setTimeout(() => {
+    const mapIds = ['overview', 'lp', 'remove', 'add'];
+    mapIds.forEach(id => {
+      if (maps[id]) {
+        maps[id].invalidateSize(true);
+      }
+    });
+  }, 300);
+}
+
+// ================================================================
+// TAB 1: 现有站点总览
+// ================================================================
+let chartCover = null, chartHist = null, chartTimeSeries = null;
+
+function renderOverview() {
+  const ov = DATA.overview;
+  const meta = ov.meta;
+  const wds = meta.weekdays;
+  const blocks = Object.keys(meta.blocks);
+  const hours = meta.hours;
+
+  const weekdayOpts = wds.map(w => `<option value="${w}">${w}</option>`).join('');
+  const blockOpts = blocks.map(b => `<option value="${b}">${b}</option>`).join('');
+  const hourOpts = hours.map(h => `<option value="${h}">${h}:00</option>`).join('');
+
+  let html = `
+  <div class="stats-row">
+    <div class="stat-box"><div class="num">${DATA.stations.length}</div><div class="label">现有急救站</div></div>
+    <div class="stat-box"><div class="num">${DATA.grids.length.toLocaleString()}</div><div class="label">800m网格</div></div>
+    <div class="stat-box"><div class="num">${DATA.grids.reduce((a,g)=>a+g.d,0).toLocaleString()}</div><div class="label">历史事件总数</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>🎛️ 选择时段（分时响应耗时：校准/经验估计）</h3></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:6px 0;">
+      <label>模式:
+        <select id="t1mode" onchange="onT1ModeChange()">
+          <option value="weekday">按星期几</option>
+          <option value="block">按时间块</option>
+        </select>
+      </label>
+      <label id="lblWeekday">星期:
+        <select id="t1weekday" onchange="onT1SelChange()">${weekdayOpts}</select>
+      </label>
+      <label id="lblBlock" style="display:none;">时间块:
+        <select id="t1block" onchange="onT1SelChange()">${blockOpts}</select>
+      </label>
+      <label>时段:
+        <select id="t1hour" onchange="onT1SelChange()">${hourOpts}</select>
+      </label>
+      <span id="t1Indicators" style="font-size:13px;"></span>
+    </div>
+    <p style="font-size:12px;color:#666;line-height:1.8;">数据来源：非同格使用API校准响应耗时；${meta.same_grid_estimation ? meta.same_grid_estimation.note : '同格来源未标记，请重算后查看。'}</p>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <h3>📈 分时覆盖率 (10min)</h3>
+        <span style="font-size:12px;color:#888;">所选星期/块 · 12时段逐档</span>
+      </div>
+      <div class="chart-container"><canvas id="chartTimeSeries"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>📊 覆盖率阈值曲线</h3>
+        <div>
+          <label style="font-size:12px;color:#888;margin-right:4px;">阈值:</label>
+          <input type="range" id="threshSlider" min="1" max="40" value="10" oninput="updateOverviewCharts()" style="width:120px;vertical-align:middle;">
+          <span id="threshDisplay" style="font-size:14px;font-weight:600;color:#1a237e;">10</span><span style="font-size:12px;color:#888;"> min</span>
+        </div>
+      </div>
+      <div class="chart-container"><canvas id="chartCoverage"></canvas></div>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>📋 当前时段覆盖指标 (@<span id="threshLabel">10</span>min)</h3></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <tr><th>维度</th><th>平均ETA</th><th>中位ETA</th><th id="threshHead">10min覆盖网格</th><th id="threshHeadPct">覆盖率</th></tr>
+          <tbody id="coverageTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>🏥 站点平均ETA (前20)</h3></div>
+      <div style="max-height:280px;overflow-y:auto;" id="stationRanking"></div>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>📊 响应时间分布</h3></div>
+      <div class="chart-container"><canvas id="chartHistogram"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>🗺️ 站点分布地图</h3></div>
+      <div id="map-overview" class="map-container"></div>
+    </div>
+  </div>`;
+
+  document.getElementById('tab-overview').innerHTML = html;
+  document.getElementById('t1weekday').value = '周五';
+  document.getElementById('t1hour').value = '18';
+  updateOverviewCharts();
+  updateStationRanking();
+  initMap('overview');
+  renderStationMap();
+}
+
+function renderStationMap() {
+  const m = maps['overview'];
+  if (!m) return;
+  const stations = DATA.stations || [];
+  addStationMarkers(m, stations, '#1565c0', 7);
+  // 全部117站画10km覆盖圈,透明度调低避免遮挡
+  stations.forEach(s => addCoverageCircle(m, s.lat, s.lng, 10, '#1565c0'));
+  addLegend(m, [
+    {label: '现有站点分布'},
+    {type: 'circle', color: '#1565c0', label: '现有急救站 (8个)'},
+    {type: 'line', color: '#1565c0', label: '各站10分钟覆盖范围'},
+  ]);
+}
+
+function onT1ModeChange() {
+  const mode = document.getElementById('t1mode').value;
+  document.getElementById('lblWeekday').style.display = mode === 'weekday' ? '' : 'none';
+  document.getElementById('lblBlock').style.display = mode === 'block' ? '' : 'none';
+  updateOverviewCharts();
+  updateStationRanking();
+}
+
+function onT1SelChange() {
+  updateOverviewCharts();
+  updateStationRanking();
+}
+
+function getCurrentSelection() {
+  const ov = DATA.overview;
+  const mode = document.getElementById('t1mode').value;
+  const hour = parseInt(document.getElementById('t1hour').value, 10);
+  if (mode === 'weekday') {
+    const wd = document.getElementById('t1weekday').value;
+    return { mode, wd, block: null, hour, cell: ov.cells[`${wd}_${hour}`] };
+  } else {
+    const block = document.getElementById('t1block').value;
+    return { mode, wd: null, block, hour, cell: ov.blocks[block][String(hour)] };
+  }
+}
+
+function updateOverviewCharts() {
+  const t = parseInt(document.getElementById('threshSlider').value, 10);
+  document.getElementById('threshDisplay').textContent = t;
+  document.getElementById('threshLabel').textContent = t;
+  document.getElementById('threshHead').textContent = t + 'min覆盖网格';
+  document.getElementById('threshHeadPct').textContent = t + 'min覆盖率';
+
+  const ov = DATA.overview;
+  const meta = ov.meta;
+  const sel = getCurrentSelection();
+  const cell = sel.cell;
+  if (!cell) return;
+
+  // 指标卡
+  document.getElementById('t1Indicators').innerHTML =
+    `10min覆盖率 <b style="color:#1a237e;">${cell.coverage_curve['10'].pct}%</b> · 平均ETA <b>${cell.avg_eta_all}min</b> · 中位ETA <b>${cell.median_eta}min</b>`;
+
+  // 分时曲线: 所选星期/块 在 12 时段的 10min 覆盖率
+  const tsLabels = meta.hours.map(h => `${h}:00`);
+  let tsData;
+  if (sel.mode === 'weekday') {
+    tsData = meta.hours.map(h => {
+      const c = ov.cells[`${sel.wd}_${h}`];
+      return c ? c.coverage_curve['10'].pct : null;
+    });
+  } else {
+    tsData = meta.hours.map(h => {
+      const c = ov.blocks[sel.block][String(h)];
+      return c ? c.coverage_curve['10'].pct : null;
+    });
+  }
+  if (chartTimeSeries) chartTimeSeries.destroy();
+  chartTimeSeries = new Chart(document.getElementById('chartTimeSeries').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: tsLabels,
+      datasets: [{
+        label: (sel.mode === 'weekday' ? sel.wd : sel.block) + ' 10min覆盖率',
+        data: tsData,
+        borderColor: '#e65100',
+        backgroundColor: '#e6510022',
+        fill: true,
+        tension: .3,
+        pointRadius: meta.hours.map(h => h === sel.hour ? 6 : 3),
+        pointBackgroundColor: meta.hours.map(h => h === sel.hour ? '#c62828' : '#e65100'),
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed.y}%` } } },
+      scales: {
+        x: { title: { display: true, text: '时段' } },
+        y: { title: { display: true, text: '10min覆盖率(%)' }, min: 0, max: 100 }
+      }
+    }
+  });
+
+  // 阈值曲线 (当前 cell)
+  if (chartCover) chartCover.destroy();
+  chartCover = new Chart(document.getElementById('chartCoverage').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: 40 }, (_, i) => i + 1),
+      datasets: [{
+        label: (sel.mode === 'weekday' ? sel.wd : sel.block) + ` ${sel.hour}:00`,
+        data: Array.from({ length: 40 }, (_, i) => cell.coverage_curve[String(i + 1)].pct),
+        borderColor: '#1565c0',
+        backgroundColor: '#1565c022',
+        fill: true,
+        tension: .3,
+        pointRadius: 0,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.parsed.x}min: ${ctx.parsed.y}%` } } },
+      scales: {
+        x: { title: { display: true, text: '响应时间(min)' }, min: 1, max: 40 },
+        y: { title: { display: true, text: '覆盖率(%)' }, min: 0, max: 100 }
+      }
+    }
+  });
+
+  // 直方图 (当前 cell)
+  if (chartHist) chartHist.destroy();
+  const hist = cell.histogram;
+  chartHist = new Chart(document.getElementById('chartHistogram').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: hist.bins.map(b => `${b}-${b + 1}`),
+      datasets: [{ label: '网格数', data: hist.counts, backgroundColor: '#2e7d3288', borderColor: '#2e7d32', borderWidth: 1 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { title: { display: true, text: '响应时间区间' }, ticks: { font: { size: 9 }, maxTicksLimit: 20 } },
+        y: { title: { display: true, text: '网格数' } }
+      }
+    }
+  });
+
+  // 对比表: 当前时段下, 各星期 / 各块的 10min 覆盖率 (随阈值联动)
+  const rows = [];
+  if (sel.mode === 'weekday') {
+    meta.weekdays.forEach(wd => {
+      const c = ov.cells[`${wd}_${sel.hour}`];
+      if (c) rows.push([`<span style="color:#1565c0;">●</span> ${wd}`, c]);
+    });
+  } else {
+    Object.keys(meta.blocks).forEach(b => {
+      const c = ov.blocks[b][String(sel.hour)];
+      if (c) rows.push([`<span style="color:#e65100;">●</span> ${b}`, c]);
+    });
+  }
+  let tbl = '';
+  rows.forEach(([label, c]) => {
+    const cv = c.coverage_curve[String(t)];
+    tbl += `<tr><td>${label}</td><td>${c.avg_eta_all} min</td><td>${c.median_eta} min</td><td>${cv.grids.toLocaleString()}</td><td>${cv.pct}%</td></tr>`;
+  });
+  document.getElementById('coverageTableBody').innerHTML = tbl;
+}
+
+function updateStationRanking() {
+  const sel = getCurrentSelection();
+  let st = [];
+  if (sel.mode === 'weekday') {
+    st = (sel.cell.station_summary || []).slice(0, 20);
+  } else {
+    const ov = DATA.overview;
+    const wds = ov.meta.blocks[sel.block];
+    const agg = {};
+    wds.forEach(wd => {
+      const c = ov.cells[`${wd}_${sel.hour}`];
+      if (!c) return;
+      c.station_summary.forEach(s => {
+        if (!agg[s.name]) agg[s.name] = { name: s.name, served: 0, etaSum: 0, n: 0 };
+        agg[s.name].served += s.served_grids;
+        agg[s.name].etaSum += s.avg_eta;
+        agg[s.name].n += 1;
+      });
+    });
+    st = Object.values(agg)
+      .map(s => ({ name: s.name, avg_eta: +(s.etaSum / s.n).toFixed(1), served_grids: s.served }))
+      .sort((a, b) => a.avg_eta - b.avg_eta).slice(0, 20);
+  }
+  let html = '<table><tr><th>排名</th><th>站点</th><th>平均ETA</th><th>服务网格</th></tr>';
+  st.forEach((s, i) => {
+    html += `<tr><td>${i + 1}</td><td>${s.name}</td><td><strong>${s.avg_eta}</strong> min</td><td>${s.served_grids}</td></tr>`;
+  });
+  html += '</table>';
+  const el = document.getElementById('stationRanking');
+  if (el) el.innerHTML = html;
+}
+
+
+// ================================================================
+// TAB 2: 推荐站点
+// ================================================================
+function renderLP() {
+  const lp = DATA.lp;
+  const sameGridMeta = DATA.overview && DATA.overview.meta && DATA.overview.meta.same_grid_estimation;
+  const sameGridNote = sameGridMeta ? sameGridMeta.note : '同格来源未标记，请重算后查看。';
+  const singleScenarios = Object.keys(lp).filter(k => lp[k].status === 'Optimal' && !k.includes('嵌套'));
+  const nestedScenarios = Object.keys(lp).filter(k => lp[k].method && lp[k].method.includes('嵌套'));
+  
+  // 从第一个场景获取δ参数
+  const deltaInfo = singleScenarios.length > 0 ? lp[singleScenarios[0]].delta_min : 2;
+  
+  let html = `
+  <div class="card">
+    <div class="card-header"><h3>🎯 LP优化推荐站点</h3></div>
+    <div style="font-size:13px;color:#666;margin-bottom:12px;background:#f5f5ff;padding:10px;border-radius:6px;">
+      <strong>模型设定:</strong> 覆盖阈值 = 预测出车至到达耗时R（非同格API校准/同格经验估计） · 两阶段求解 · 4时段联合优化<br>
+      <span style="font-size:12px;">${sameGridNote}</span>
+    </div>
+  </div>
+  
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><h3>📋 响应时间×覆盖率 方案对比</h3></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <tr><th>响应时间R</th><th>行驶阈值T</th><th>80%覆盖</th><th>90%覆盖</th><th>95%覆盖</th></tr>
+          ${[8,10,12,15].map(R => {
+            const r80 = lp[R+'min_80%']; const r90 = lp[R+'min_90%']; const r95 = lp[R+'min_95%'];
+            const T = r80 ? r80.drive_threshold : '-';
+            return `<tr>
+              <td><strong>${R}min</strong></td>
+              <td>${T}min</td>
+              <td>${r80 && r80.status==='Optimal' ? `<strong>${r80.n_stations}</strong>站 (${r80.actual_coverage_pct}%)` : '-'}</td>
+              <td>${r90 && r90.status==='Optimal' ? `<strong>${r90.n_stations}</strong>站 (${r90.actual_coverage_pct}%)` : '-'}</td>
+              <td>${r95 && r95.status==='Optimal' ? `<strong>${r95.n_stations}</strong>站 (${r95.actual_coverage_pct}%)` : '-'}</td>
+            </tr>`;
+          }).join('')}
+        </table>
+      </div>
+      <p style="font-size:11px;color:#999;margin-top:8px;">括号内为固定站点数后, 能达到的最大实际覆盖率</p>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📐 分阶段建设方案</h3></div>
+      <div id="nestedDisplay"></div>
+    </div>
+  </div>
+  
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <h3>📍 方案详情</h3>
+        <select id="lpScenario" onchange="updateLPDetail()" style="max-width:250px;">
+          ${singleScenarios.sort().map(s => `<option value="${s}">${s} (${lp[s].n_stations}站)</option>`).join('')}
+          ${nestedScenarios.sort().map(s => `<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="max-height:400px;overflow-y:auto;" id="lpDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📊 方案指标</h3></div>
+      <div id="lpMetrics" style="font-size:13px;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>🗺️ 推荐站点位置地图</h3></div>
+    <div id="map-lp" class="map-container"></div>
+  </div>`;
+  
+  document.getElementById('tab-lp').innerHTML = html;
+  
+  // 嵌套建设展示
+  renderNested();
+  initMap('lp');
+  updateLPDetail();  // 内部调用 renderLPMap()
+}
+
+function clearMapLayers(map) {
+  if (!map) return;
+  // 移除图例
+  if (map._legendControl) {
+    map.removeControl(map._legendControl);
+    map._legendControl = null;
+  }
+  // 移除全部覆盖物（保留底图）
+  const tileLayer = map._tileLayer;
+  const layersToRemove = [];
+  map.eachLayer(layer => { if (layer !== tileLayer) layersToRemove.push(layer); });
+  layersToRemove.forEach(l => map.removeLayer(l));
+}
+
+function renderLPMap() {
+  const m = maps['lp'];
+  if (!m) return;
+  clearMapLayers(m);
+  const sel = document.getElementById('lpScenario');
+  if (!sel) return;
+  const key = sel.value;
+  const r = DATA.lp[key];
+  if (!r) return;
+  const stations = DATA.stations || [];
+  addStationMarkers(m, stations, '#888', 4);
+
+  let showStations, label;
+
+  if (r.method && r.method.includes('嵌套')) {
+    // 嵌套场景: 显示最高档位的站点
+    const levels = Object.keys(r.nested || {});
+    const lastLevel = levels[levels.length - 1];
+    showStations = r.nested[lastLevel].stations || [];
+    label = key + ' | 分阶段建设 (最高档' + lastLevel + ')';
+  } else {
+    showStations = r.stations || [];
+    label = key + ' | 选址方案';
+  }
+
+  if (!showStations.length) return;
+
+  addStationMarkers(m, showStations, '#e65100', 9);
+  showStations.forEach(s => addCoverageCircle(m, s.lat, s.lng, 10, '#e65100'));
+  addLegend(m, [
+    {label: label},
+    {type: 'circle', color: '#e65100', label: '推荐新增站点 (' + showStations.length + '个)'},
+    {type: 'line', color: '#e65100', label: '该站点10分钟驾车可达范围'},
+    {type: 'circle', color: '#888', label: '现有急救站 (8个, 固定保留)'},
+  ]);
+}
+
+function renderNested() {
+  const lp = DATA.lp;
+  const nestedKeys = Object.keys(lp).filter(k => lp[k].method && lp[k].method.includes('嵌套'));
+  
+  if (nestedKeys.length === 0) {
+    document.getElementById('nestedDisplay').innerHTML = '<p style="color:#888;">无嵌套数据</p>';
+    return;
+  }
+  
+  let html = '';
+  nestedKeys.sort().forEach(key => {
+    const r = lp[key];
+    const nested = r.nested;
+    if (!nested) return;
+    
+    const levels = Object.keys(nested);
+    html += `<div style="margin-bottom:12px;">
+      <h4 style="font-size:13px;color:#1a237e;margin-bottom:6px;">${key}</h4>
+      <table>
+        <tr><th>覆盖率</th><th>站点数</th><th>新增</th></tr>`;
+    
+    let prevStations = new Set();
+    levels.forEach((level, i) => {
+      const nl = nested[level];
+      const curSet = new Set(nl.stations.map(s => `${s.grid_a},${s.grid_b}`));
+      const newAdd = i === 0 ? curSet.size : [...curSet].filter(x => !prevStations.has(x)).length;
+      prevStations = curSet;
+      
+      html += `<tr>
+        <td><span class="badge ${nl.actual_coverage_pct >= parseFloat(level) ? 'badge-ok' : 'badge-warn'}">≥${level}</span></td>
+        <td><strong>${nl.n_stations}</strong> 站</td>
+        <td>${i === 0 ? `首批 ${newAdd}站` : `+${newAdd}站`}</td>
+      </tr>`;
+    });
+    html += `</table></div>`;
+  });
+  
+  document.getElementById('nestedDisplay').innerHTML = html;
+}
+
+function updateLPDetail() {
+  const key = document.getElementById('lpScenario').value;
+  const r = DATA.lp[key];
+  if (!r) {
+    document.getElementById('lpDetail').innerHTML = '<p style="color:#888;padding:20px;">无数据</p>';
+    document.getElementById('lpMetrics').innerHTML = '';
+    return;
+  }
+  
+  // 嵌套场景特殊处理
+  if (r.method && r.method.includes('嵌套')) {
+    let html = '';
+    const levels = Object.keys(r.nested || {});
+    levels.forEach(level => {
+      const nl = r.nested[level];
+      html += `<h4 style="font-size:13px;color:#1a237e;margin:8px 0;">≥${level}覆盖 (${nl.n_stations}站)</h4>`;
+      html += `<table><tr><th>#</th><th>网格</th><th>经度</th><th>纬度</th><th>需求</th></tr>`;
+      nl.stations.forEach((s, i) => {
+        html += `<tr><td>${i+1}</td><td>(${s.grid_a},${s.grid_b})</td><td>${s.lng}</td><td>${s.lat}</td><td>${s.demand.toLocaleString()}</td></tr>`;
+      });
+      html += '</table>';
+    });
+    document.getElementById('lpDetail').innerHTML = html;
+    document.getElementById('lpMetrics').innerHTML = `
+      <p><strong>方法:</strong> ${r.method}</p>
+      <p><strong>行驶阈值:</strong> T=${r.drive_threshold}min</p>
+      <p><strong>δ:</strong> ${r.delta_min}min</p>`;
+    renderLPMap();
+    return;
+  }
+  
+  // 单档场景
+  let html = `<table><tr><th>#</th><th>网格坐标</th><th>经度</th><th>纬度</th><th>需求</th></tr>`;
+  (r.stations || []).forEach((s, i) => {
+    html += `<tr><td>${i+1}</td><td>(${s.grid_a},${s.grid_b})</td><td>${s.lng}</td><td>${s.lat}</td><td>${s.demand.toLocaleString()}</td></tr>`;
+  });
+  html += '</table>';
+  document.getElementById('lpDetail').innerHTML = html;
+  
+  document.getElementById('lpMetrics').innerHTML = `
+    <p><strong>方法:</strong> ${r.method}</p>
+    <p><strong>响应时间R:</strong> ${key.split('_')[0]}</p>
+    <p><strong>行驶阈值T:</strong> ${r.drive_threshold}min <span style="color:#888;">(δ=${r.delta_min}min)</span></p>
+    <p><strong>目标覆盖率:</strong> ${key.split('_')[1]}</p>
+    <p><strong>实际覆盖率:</strong> ${r.actual_coverage_pct}%</p>
+    <p><strong>最少站点:</strong> ${r.n_stations}</p>
+    <p><strong>覆盖网格:</strong> ${r.n_covered}/${r.n_total}</p>`;
+  renderLPMap();
+}
+
+
+// ================================================================
+// TAB 3: 拆站分析
+// ================================================================
+let chartTransfer = null;
+
+function renderRemove() {
+  const rm = DATA.remove;
+  const sameGridMeta = DATA.overview && DATA.overview.meta && DATA.overview.meta.same_grid_estimation;
+  const sameGridNote = sameGridMeta ? sameGridMeta.note : '同格来源未标记，请重算后查看。';
+  const stations = Object.keys(rm);
+  
+  // 按覆盖网格数排序
+  const sorted = stations.sort((a,b) => rm[b].n_covered - rm[a].n_covered);
+  
+  let html = `
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <h3>🗑️ 拆站影响分析</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <input id="removeStationSearch" type="text" placeholder="搜索站点..." 
+                 style="width:120px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:13px;"
+                 oninput="filterRemoveStation()">
+          <select id="removeStation" onchange="updateRemoveDetail()" style="max-width:220px;font-size:13px;">
+            ${sorted.map(s => {
+              const r = rm[s];
+              return `<option value="${s}">${s} (${r.n_covered}网格, ${r.demand_lost.toLocaleString()}事件)</option>`;
+            }).join('')}
+          </select>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#666;line-height:1.8;margin-bottom:8px;">${sameGridNote}</p>
+      <div id="removeSummary" class="stats-row"></div>
+      <div class="chart-container" style="height:200px;"><canvas id="chartTransfer"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📋 负载转移明细</h3></div>
+      <div style="max-height:500px;overflow-y:auto;" id="removeDetail"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>🗺️ 拆站影响地图</h3></div>
+    <div id="map-remove" class="map-container"></div>
+  </div>`;
+  
+  document.getElementById('tab-remove').innerHTML = html;
+  updateRemoveDetail();
+  initMap('remove');
+}
+
+function filterRemoveStation() {
+  const q = (document.getElementById('removeStationSearch').value || '').trim().toLowerCase();
+  const sel = document.getElementById('removeStation');
+  const allOpts = window._removeStationOptions || [];
+  if (allOpts.length === 0) {
+    for (let i = 0; i < sel.options.length; i++) allOpts.push({val: sel.options[i].value, txt: sel.options[i].text});
+    window._removeStationOptions = allOpts;
+  }
+  sel.innerHTML = '';
+  const filtered = q ? allOpts.filter(o => o.val.includes(q) || o.txt.toLowerCase().includes(q)) : allOpts;
+  filtered.forEach(o => { const opt = document.createElement('option'); opt.value = o.val; opt.text = o.txt; sel.add(opt); });
+  if (filtered.length > 0) { sel.value = filtered[0].val; updateRemoveDetail(); }
+}
+
+function updateRemoveDetail() {
+  const name = document.getElementById('removeStation').value;
+  const r = DATA.remove[name];
+  if (!r) return;
+  
+  // Summary
+  document.getElementById('removeSummary').innerHTML = `
+    <div class="stat-box"><div class="num">${r.n_covered}</div><div class="label">覆盖网格数</div></div>
+    <div class="stat-box"><div class="num">${r.demand_lost.toLocaleString()}</div><div class="label">受影响事件量</div></div>
+    <div class="stat-box"><div class="num" style="color:${r.grids_uncovered > 0 ? '#c62828' : '#2e7d32'}">${r.grids_uncovered}</div><div class="label">失联网格数(>10min)</div></div>
+    <div class="stat-box"><div class="num" style="color:${r.demand_uncovered > 0 ? '#c62828' : '#2e7d32'}">${r.demand_uncovered.toLocaleString()}</div><div class="label">失联事件量</div></div>
+  `;
+
+  // Transfer chart
+  if (chartTransfer) chartTransfer.destroy();
+  if (r.transfer.length > 0) {
+    const top10 = r.transfer.slice(0, 10);
+    const total = top10.reduce((a, t) => a + t.demand, 0);
+    const ctx = document.getElementById('chartTransfer').getContext('2d');
+    const colors = ['#1565c0','#1976d2','#1e88e5','#2196f3','#42a5f5','#64b5f6','#90caf9','#bbdefb','#e3f2fd','#f5f5f5'];
+    chartTransfer = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: top10.map(t => t.to.length > 14 ? t.to.slice(0,14)+'..' : t.to),
+        datasets: [{
+          label: '承接事件量',
+          data: top10.map(t => t.demand),
+          backgroundColor: colors.slice(0, top10.length),
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { title: { display: true, text: '承接事件量' } },
+        }
+      }
+    });
+  }
+
+  // Detail table
+  let html = `<table><tr><th>邻居站点</th><th>承接事件量</th><th>占比</th></tr>`;
+  const totalTrans = r.transfer.reduce((a, t) => a + t.demand, 0);
+  r.transfer.forEach(t => {
+    const pct = totalTrans > 0 ? (t.demand / totalTrans * 100).toFixed(1) : 0;
+    html += `<tr>
+      <td>${t.to}</td>
+      <td>${t.demand.toLocaleString()}</td>
+      <td>
+        <div class="transfer-bar">
+          <div class="transfer-fill" style="width:${pct}%"></div>
+        </div>
+        ${pct}%
+      </td>
+    </tr>`;
+  });
+  if (r.grids_uncovered > 0) {
+    html += `<tr style="background:#fff3e0;"><td colspan="3">
+      <span class="badge badge-warn">⚠️ 有 ${r.grids_uncovered} 个网格找不到10min内的替代站点 (${r.demand_uncovered.toLocaleString()} 事件可能超时)</span>
+    </td></tr>`;
+  }
+  html += '</table>';
+  document.getElementById('removeDetail').innerHTML = html;
+  renderRemoveMap();
+}
+
+function renderRemoveMap() {
+  const m = maps['remove'];
+  if (!m) return;
+  clearMapLayers(m);
+  const name = document.getElementById('removeStation').value;
+  const r = DATA.remove[name];
+  if (!r) return;
+  const stations = DATA.stations || [];
+  const s = stations.find(x => x.name === name);
+  if (s) {
+    L.circleMarker([s.lat, s.lng], {radius:12, color:'#c62828', fillColor:'#c62828', fillOpacity:0.8, weight:3}).addTo(m)
+      .bindTooltip(name + ' (待移除)', {direction:'top'});
+    addCoverageCircle(m, s.lat, s.lng, 10, '#c62828');
+  }
+  const others = stations.filter(x => x.name !== name);
+  addStationMarkers(m, others, '#999', 4);
+  (r.transfer || []).slice(0,5).forEach(t => {
+    const ts = stations.find(x => x.name === t.to);
+    if (ts) {
+      L.circleMarker([ts.lat, ts.lng], {radius:8, color:'#1565c0', fillColor:'#1565c0', fillOpacity:0.7, weight:2}).addTo(m)
+        .bindTooltip(t.to + ' (+' + t.demand.toLocaleString() + '件)', {direction:'top'});
+    }
+  });
+  const nUncovered = r.grids_uncovered || 0;
+  addLegend(m, [
+    {label: name + ' | 拆站影响'},
+    {type: 'circle', color: '#c62828', label: '待移除站点 (覆盖' + r.n_covered + '网格)'},
+    {type: 'line', color: '#c62828', label: '原覆盖范围 (10min)'},
+    {type: 'circle', color: '#1565c0', label: '承接站点 (标承接事件量)'},
+    {type: 'circle', color: '#999', label: '其他未受影响站点'},
+    nUncovered > 0 ? {label: '⚠️ ' + nUncovered + '个网格可能失联'} : {label: '✓ 所有网格有替代站点'},
+  ]);
+}
+
+// ---- 地点查询功能 (搜索/地图点击 → 网格) ----
+function findNearestGrid(lat, lng) {
+  // Keep the historical function name for callers, but require cell containment.
+  // Match xy_spatial_common.locate_points exactly; never snap an outside point.
+  const la = Number(lat), lo = Number(lng);
+  const scope = DATA.overview && DATA.overview.meta && DATA.overview.meta.spatial_scope;
+  if (!Number.isFinite(la) || !Number.isFinite(lo) || !scope ||
+      !['bbox_then_cells', 'pinned_cells'].includes(scope.kind) ||
+      !Number.isFinite(scope.anchor_lat) || !Number.isFinite(scope.anchor_lng) ||
+      !Number.isFinite(scope.step_lat) || scope.step_lat <= 0 ||
+      !Number.isFinite(scope.step_lng) || scope.step_lng <= 0) return null;
+  if (scope.kind === 'bbox_then_cells') {
+    const b = scope.bounds;
+    if (!b || ![b.lat_min, b.lat_max, b.lng_min, b.lng_max].every(Number.isFinite) ||
+        la < b.lat_min || la >= b.lat_max || lo < b.lng_min || lo >= b.lng_max) return null;
+  }
+  const a = Math.floor((la - scope.anchor_lat) / scope.step_lat + 1e-10);
+  const b = Math.floor((lo - scope.anchor_lng) / scope.step_lng + 1e-10);
+  return GRID_LOOKUP.find(g => Number(g.a) === a && Number(g.b) === b) || null;
+}
+
+function showAddOutsideScope(message = '该位置不在当前研究范围内，不能吸附到边缘网格进行评估。') {
+  document.getElementById('addGridSearchResult').innerHTML = '<span style="color:#c62828;">' + message + '</span>';
+  document.getElementById('candidateDetail').innerHTML = '<p style="color:#888;padding:20px;">当前位置没有有效研究网格，已清空上一次候选详情。</p>';
+  if (maps.add) renderAddMap();
+}
+
+
+// ================================================================
+// TAB 4: 加站评估
+// ================================================================
+function hasCurrentAddSchema() {
+  const add = DATA.add;
+  const required = ['new_covered_demand', 'n_new_covered', 'coverage_gain_pp',
+    'potential_transfer_demand', 'total_reachable_demand', 'self_demand',
+    'baseline_unknown_reachable_demand', 'baseline_unknown_reachable_grids'];
+  return add && add.schema_version === 2 && add.meta && add.baseline &&
+    add.meta.weekday_aggregation === 'compiled_across_weekdays' &&
+    Number.isFinite(add.meta.hour) && Number.isFinite(add.meta.threshold_min) &&
+    Number.isFinite(add.meta.n_evaluated) && Number.isFinite(add.meta.baseline_unknown_grids) &&
+    Number.isFinite(add.baseline.demand_coverage_pct) &&
+    Array.isArray(add.candidates) && add.candidates.every(c =>
+      required.every(key => Number.isFinite(c[key]) && c[key] >= 0) &&
+      Array.isArray(c.reduces) && c.reduces.every(r =>
+        Number.isFinite(r.demand) && Number.isFinite(r.n_grids)));
+}
+
+function renderAdd() {
+  window._candidateData = [];
+  if (!hasCurrentAddSchema()) {
+    document.getElementById('tab-add').innerHTML = `
+      <div class="card">
+        <h3>加站评估数据需要重算</h3>
+        <p>当前数据仍为旧评分口径或缺少新增收益字段。请生成新版Tab4数据后刷新页面。</p>
+      </div>`;
+    if (maps.add) { maps.add.remove(); delete maps.add; }
+    return false;
+  }
+  const candidates = DATA.add.candidates.slice().sort((a, b) =>
+    b.new_covered_demand - a.new_covered_demand ||
+    b.potential_transfer_demand - a.potential_transfer_demand ||
+    a.grid_idx - b.grid_idx).slice(0, 500);
+  const meta = DATA.add.meta;
+  const baseline = DATA.add.baseline;
+  const stationCount = (DATA.stations || []).length;
+  const best = candidates[0];
+  
+  let html = `
+  <div class="card" style="margin-bottom:12px;">
+    <div class="card-header"><h3>🔍 地点查询</h3></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:4px 0;">
+      <input id="addSearchLocation" type="text" placeholder="输入地名查看候选新增收益" 
+             style="flex:1;min-width:200px;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;"
+             onkeydown="if(event.key==='Enter')searchAddLocation()">
+      <button onclick="searchAddLocation()" style="padding:8px 16px;background:#1565c0;color:#fff;border:none;border-radius:4px;cursor:pointer;">搜索</button>
+      <span style="font-size:12px;color:#888;">或点击地图上的位置</span>
+    </div>
+    <div id="addGridSearchResult" style="margin-top:8px;font-size:14px;min-height:0;"></div>
+  </div>
+  <div class="stats-row" id="addStats">
+    <div class="stat-box"><div class="num">${candidates.length.toLocaleString()}</div><div class="label">展示候选数（已评估${meta.n_evaluated.toLocaleString()}个）</div></div>
+    <div class="stat-box"><div class="num">${best ? best.new_covered_demand.toLocaleString() : '-'}</div><div class="label">排名首位新增覆盖事件量</div></div>
+    <div class="stat-box"><div class="num">${best ? best.n_new_covered : '-'}</div><div class="label">排名首位新增覆盖网格数</div></div>
+    <div class="stat-box"><div class="num">${best ? best.coverage_gain_pp.toFixed(2) : '-'}</div><div class="label">排名首位需求覆盖提升（百分点）</div></div>
+  </div>
+  <div class="card" style="background:#f8f9ff;border:1px solid #c8d3e0;">
+    <div style="font-size:13px;line-height:1.8;">
+      <strong>评估口径：</strong>${meta.hour}:00预测响应耗时跨星期聚合，${meta.threshold_min}分钟阈值；与现有${stationCount}站比较。<br>
+      <span style="color:#555;">${meta.same_grid_estimation ? meta.same_grid_estimation.note : '同格来源未标记，请重算后查看。'}</span><br>
+      <strong>排名评分：</strong>
+      <code style="background:#e8eaf6;padding:2px 6px;border-radius:3px;font-size:13px;">评分 = 新增覆盖事件量（已扣除现站已有覆盖）</code><br>
+      <span style="color:#555;">只计入新站达标、现站已知最短耗时超过阈值的网格；自身需求仅作位置背景，不额外加分。同分按潜在转移事件量排序。</span><br>
+      <span style="color:#555;">现站基线需求覆盖率：${baseline.demand_coverage_pct.toFixed(2)}%；基准未知${meta.baseline_unknown_grids.toLocaleString()}格，不计入新增收益。潜在转移按新站预测更快估计，不代表实际派车量。</span><br>
+      <span style="color:#888;font-size:12px;">Tab4数据生成时间：${meta.generated_at}</span>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header">
+        <h3>🏆 候选新增收益排名 (Top 500)</h3>
+        <input type="text" id="candidateSearch" placeholder="搜索网格..." oninput="updateCandidateTable()" style="width:120px;">
+      </div>
+      <div style="max-height:500px;overflow-y:auto;" id="candidateTable"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>📌 选定候选详情</h3></div>
+      <div id="candidateDetail">
+        <p style="color:#888;padding:20px;text-align:center;">点击左侧候选查看详情</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>🗺️ 候选位置地图</h3></div>
+    <div id="map-add" class="map-container"></div>
+  </div>`;
+  
+  document.getElementById('tab-add').innerHTML = html;
+  window._candidateData = candidates;
+  updateCandidateTable();
+  initMap('add');
+  renderAddMap();
+  return true;
+}
+
+function updateCandidateTable() {
+  const q = (document.getElementById('candidateSearch').value || '').toLowerCase();
+  const candidates = window._candidateData || [];
+  
+  const filtered = q ? candidates.filter(c => c.grid_a == q || c.grid_b == q || `${c.grid_a},${c.grid_b}`.includes(q)) : candidates;
+  
+  let html = `<table><tr><th>排名</th><th>网格</th><th>新增覆盖网格</th><th>新增覆盖事件</th><th>提升（百分点）</th><th>潜在转移事件</th></tr>`;
+  filtered.forEach(c => {
+    html += `<tr class="candidate-row" onclick="showCandidateDetail(${c.grid_idx})">
+      <td>${candidates.indexOf(c)+1}</td>
+      <td>(${c.grid_a},${c.grid_b})</td>
+      <td>${c.n_new_covered}</td>
+      <td><strong>${c.new_covered_demand.toLocaleString()}</strong></td>
+      <td>${c.coverage_gain_pp.toFixed(2)}</td>
+      <td>${c.potential_transfer_demand.toLocaleString()}</td>
+    </tr>`;
+  });
+  if (filtered.length === 0) html += '<tr><td colspan="6" style="text-align:center;color:#888;">无匹配</td></tr>';
+  html += '</table>';
+  document.getElementById('candidateTable').innerHTML = html;
+}
+
+function renderAddMap() {
+  const m = maps['add'];
+  if (!m) return;
+  clearMapLayers(m);
+  const candidates = window._candidateData || [];
+  const stations = DATA.stations || [];
+  addStationMarkers(m, stations, '#999', 4);
+  candidates.slice(0, 500).forEach((c, i) => {
+    const col = i < 10 ? '#e65100' : i < 30 ? '#f59e0b' : '#888';
+    const r2 = i < 10 ? 7 : 5;
+    L.circleMarker([c.lat, c.lng], {radius:r2, color:col, fillColor:col, fillOpacity:0.7, weight:1})
+      .addTo(m)
+      .bindTooltip('#'+(i+1)+' ('+c.grid_a+','+c.grid_b+') 新增覆盖:'+c.new_covered_demand.toLocaleString()+'件；提升:'+c.coverage_gain_pp.toFixed(2)+'个百分点', {direction:'top'});
+  });
+  addLegend(m, [
+    {label: '新增覆盖事件量排名 (Top 500)'},
+    {type: 'circle', color: '#e65100', label: 'Top 1-10 候选'},
+    {type: 'circle', color: '#f59e0b', label: 'Top 11-30 候选'},
+    {type: 'circle', color: '#888', label: 'Top 31-500 候选'},
+    {type: 'circle', color: '#999', label: '现有急救站 ('+stations.length+'个)'},
+  ]);
+}
+
+function showCandidateDetail(gidx) {
+  const candidates = window._candidateData || [];
+  const c = candidates.find(x => x.grid_idx === gidx);
+  if (!c) return;
+  
+  let html = `
+  <div class="stats-row">
+    <div class="stat-box"><div class="num">(${c.grid_a},${c.grid_b})</div><div class="label">网格坐标</div></div>
+    <div class="stat-box"><div class="num">${c.n_new_covered}</div><div class="label">新增覆盖网格</div></div>
+    <div class="stat-box"><div class="num">${c.new_covered_demand.toLocaleString()}</div><div class="label">新增覆盖事件量</div></div>
+    <div class="stat-box"><div class="num">${c.coverage_gain_pp.toFixed(2)}</div><div class="label">需求覆盖提升（百分点）</div></div>
+  </div>
+  <p style="font-size:13px;line-height:1.8;">可达总事件量：${c.total_reachable_demand.toLocaleString()}件（含已有覆盖，不能视为新增）。自身需求：${c.self_demand.toLocaleString()}件（不额外加分）。</p>
+  <p style="font-size:13px;line-height:1.8;">可达但现站基准未知：${c.baseline_unknown_reachable_grids}格、${c.baseline_unknown_reachable_demand.toLocaleString()}件，未计入新增收益。</p>
+  <div style="margin-top:12px;">
+    <h4 style="font-size:13px;color:#1a237e;margin-bottom:8px;">潜在需求转移（新站更快，非实际派车量）：${c.potential_transfer_demand.toLocaleString()}件</h4>
+    <p style="font-size:12px;color:#666;margin-bottom:8px;">仅统计现站已达标且新站预测更快的需求，与新增覆盖分开计算；未模拟救护车忙闲、容量或实际派车规则。</p>
+    <table>
+      <tr><th>原预测最近站</th><th>潜在转移事件量</th><th>涉及网格</th></tr>
+      ${c.reduces.map(r => `<tr><td>${r.station}</td><td>${r.demand.toLocaleString()}</td><td>${r.n_grids}</td></tr>`).join('') || '<tr><td colspan="3" style="color:#888;">无符合条件的潜在转移</td></tr>'}
+    </table>
+  </div>`;
+  
+  document.getElementById('candidateDetail').innerHTML = html;
+}
+
+// ---- 加站评估地点查询 ----
+function searchAddLocation() {
+  const q = document.getElementById('addSearchLocation').value.trim();
+  if (!q) return;
+  document.getElementById('addGridSearchResult').innerHTML = '🔍 搜索中...';
+  document.getElementById('candidateDetail').innerHTML = '<p style="color:#888;padding:20px;">请选择本次搜索的研究范围内地点。</p>';
+  const url = '/geocode?q=' + encodeURIComponent(q);
+  console.log('[Add] 搜索:', q);
+  fetch(url)
+    .then(r => { console.log('[Add] 状态:', r.status); return r.json(); })
+    .then(data => {
+      console.log('[Add] 结果:', data);
+      if (data.status !== 0 || !data.data || data.data.length === 0) {
+        document.getElementById('addGridSearchResult').innerHTML = '<span style="color:#c62828;">未找到该地点，试试更具体的关键词（如：樊城区XX路XX号）</span>';
+        return;
+      }
+      const items = data.data;
+      // 多个结果 -> 展示候选列表(含完整地址)让用户选择
+      if (items.length > 1) {
+        let list = '<div style="background:#f0f4ff;padding:8px;border-radius:6px;border-left:4px solid #1565c0;">' +
+          '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">找到 ' + items.length + ' 个相关地点，请选择：</div>';
+        items.forEach((item, idx) => {
+          const g = findNearestGrid(item.location.lat, item.location.lng);
+          list += `<div style="padding:6px 8px;margin:4px 0;background:${idx===0?'#e8eaf6':'#fff'};border-radius:4px;cursor:pointer;font-size:13px;"
+            onclick="pickAddLocation('${item.location.lat}','${item.location.lng}')"
+            onmouseover="this.style.background='#e3f2fd'" onmouseout="this.style.background='${idx===0?'#e8eaf6':'#fff'}'">
+            <div style="font-weight:600;">${item.title || '地点' + (idx+1)}</div>
+            <div style="color:#666;font-size:12px;margin-top:2px;">📍 ${item.address || ''}</div>
+            ${g ? `<div style="color:#1565c0;font-size:12px;margin-top:2px;">→ 网格#${g.i} (${g.a},${g.b}) · 最近站:${g.station}</div>` : '<div style="color:#c62828;font-size:12px;margin-top:2px;">研究范围外，不参与评估</div>'}
+          </div>`;
+        });
+        list += '</div>';
+        document.getElementById('addGridSearchResult').innerHTML = list;
+        return;
+      }
+      // 只有一个结果 -> 直接定位
+      const best = items[0];
+      const grid = findNearestGrid(best.location.lat, best.location.lng);
+      if (!grid) {
+        showAddOutsideScope('搜索到的地点不在当前研究范围内，不能吸附到边缘网格进行评估。');
+        return;
+      }
+      showAddGridInfo(grid);
+    })
+    .catch(e => {
+      console.error('[Add] 搜索失败:', e);
+      document.getElementById('addGridSearchResult').innerHTML = '<span style="color:#c62828;">搜索失败: ' + e.message + '</span>';
+    });
+}
+
+function pickAddLocation(lat, lon) {
+  const grid = findNearestGrid(parseFloat(lat), parseFloat(lon));
+  if (!grid) {
+    showAddOutsideScope('所选地点不在当前研究范围内，不能吸附到边缘网格进行评估。');
+    return;
+  }
+  showAddGridInfo(grid);
+}
+
+function showAddGridInfo(grid) {
+  const candidates = window._candidateData || [];
+  const c = candidates.find(x => x.grid_idx === grid.i);
+  const rank = c ? (candidates.indexOf(c) + 1) : null;
+  let html = '<div style="background:#f0f4ff;padding:12px;border-radius:6px;border-left:4px solid #e65100;">' +
+    '<div style="font-size:15px;font-weight:600;margin-bottom:6px;">' +
+    '\u{1F4CC} \u{7F51}\u{683C} #' + grid.i + ' (' + grid.a + ',' + grid.b + ')' +
+    '<span style="font-weight:normal;font-size:13px;color:#666;margin-left:8px;">' +
+    grid.lat.toFixed(4) + '\u{00B0}N, ' + grid.lng.toFixed(4) + '\u{00B0}E</span></div>' +
+    '<div style="font-size:13px;"><b>\u{6700}\u{8FD1}\u{7AD9}:</b> ' + grid.station + ' | <b>\u{5386}\u{53F2}\u{4E8B}\u{4EF6}:</b> ' + grid.d.toLocaleString() + ' \u{4EF6}</div>';
+  if (grid.station_eta_source) {
+    const sourceLabel = grid.station_eta_source === 'same_grid_empirical' ? '同格经验估计（非API实测）' :
+      grid.station_eta_source === 'api_calibrated' ? 'API校准' : '来源未知或未标记';
+    html += '<div style="font-size:12px;color:#666;margin-top:4px;">最近站耗时来源：' + sourceLabel +
+      (Number.isFinite(grid.station_eta_min) ? '；预测耗时 ' + grid.station_eta_min.toFixed(2) + ' 分钟' : '') + '</div>';
+  }
+  if (c) {
+    html += '<div style="margin-top:8px;padding:8px;background:#fff8e1;border-radius:4px;">' +
+      '<span style="color:#e65100;font-weight:600;">\u{2705} \u{8BE5}\u{7F51}\u{683C}\u{662F}\u{5019}\u{9009}\u{52A0}\u{7AD9}\u{4F4D}\u{7F6E}</span><br>' +
+      '<table style="font-size:13px;margin-top:4px;">' +
+      '<tr><td style="padding:2px 12px 2px 0;">排名</td><td style="font-weight:600;color:#e65100;">#' + rank + '</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">新增覆盖事件量（排名评分）</td><td style="font-weight:600;">' + c.new_covered_demand.toLocaleString() + ' 件</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">\u{65B0}\u{589E}\u{8986}\u{76D6}\u{7F51}\u{683C}</td><td>' + c.n_new_covered + '</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">需求覆盖提升</td><td>' + c.coverage_gain_pp.toFixed(2) + ' 个百分点</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">潜在转移事件量（非实际派车量）</td><td>' + c.potential_transfer_demand.toLocaleString() + ' 件</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">可达总事件量（含已有覆盖）</td><td>' + c.total_reachable_demand.toLocaleString() + ' 件</td></tr>' +
+      '<tr><td style="padding:2px 12px 2px 0;">自身需求（不额外加分）</td><td>' + c.self_demand.toLocaleString() + ' \u{4EF6}</td></tr>' +
+      '</table></div>';
+    showCandidateDetail(grid.i);
+  } else {
+    html += '<div style="margin-top:8px;padding:8px;background:#f5f5f5;border-radius:4px;">' +
+      '<span style="color:#888;">\u{26A0}\u{FE0F} \u{8BE5}\u{7F51}\u{683C}\u{4E0D}\u{5728}\u{5019}\u{9009}\u{52A0}\u{7AD9}\u{5217}\u{8868}\u{524D}500\u{540D}\u{4E2D}</span></div>';
+    document.getElementById('candidateDetail').innerHTML = '<p style="color:#888;padding:20px;">当前查询网格未列入展示的前500名候选，不能据此将其新增收益视为0。</p>';
+  } html += '</div>';
+  document.getElementById('addGridSearchResult').innerHTML = html;
+  const m = maps['add'];
+  if (m) {
+    clearMapLayers(m);
+    L.circleMarker([grid.lat, grid.lng], {radius:8, color:'#e65100', fillColor:'#ffeb3b', fillOpacity:0.9, weight:3}).addTo(m)
+      .bindTooltip('网格#' + grid.i + (c ? ' 排名#' + rank + ' 新增覆盖' + c.new_covered_demand.toLocaleString() + '件；提升' + c.coverage_gain_pp.toFixed(2) + '个百分点' : ' 未列入前500名'), {direction:'top'}).openTooltip();
+    m.setView([grid.lat, grid.lng], 13);
+    addStationMarkers(m, DATA.stations||[], '#999', 4);
+    addLegend(m, [{label:'\u{67E5}\u{8BE2}\u{4F4D}\u{7F6E}'},{type:'circle',color:'#e65100',label:'\u{5F53}\u{524D}\u{67E5}\u{8BE2}\u{7F51}\u{683C}'},{type:'circle',color:'#999',label:'\u{73B0}\u{6709}\u{7AD9}\u{70B9}'}]);
+  }
+}
+function initAddMapClick() {
+  const m = maps['add'];
+  if (!m) return;
+  m.on('click', function(e) {
+    const grid = findNearestGrid(e.latlng.lat, e.latlng.lng);
+    if (grid) showAddGridInfo(grid);
+    else showAddOutsideScope();
+  });
+}
+// Override renderAdd to add map click
+const __origRenderAdd = renderAdd;
+renderAdd = function() {
+  if (__origRenderAdd() !== false) initAddMapClick();
+};
+
+
+// ================================================================
+// 地图工具函数
+// ================================================================
+let maps = {};
+
+function initMap(tabId, center=[32.05, 112.14], zoom=11) {
+  const el = document.getElementById('map-' + tabId);
+  if (!el) return null;
+  if (maps[tabId]) { clearMapLayers(maps[tabId]); maps[tabId].invalidateSize(); return maps[tabId]; }
+  const m = L.map(el, { zoomControl: true, attributionControl: false }).setView(center, zoom);
+  const tl = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+  }).addTo(m);
+  m._tileLayer = tl;
+  maps[tabId] = m;
+  setTimeout(() => m.invalidateSize(), 500);
+  return m;
+}
+
+function addLegend(map, items) {
+  // 移除旧图例
+  if (map._legendControl) {
+    map.removeControl(map._legendControl);
+  }
+  const legend = L.control({position: 'bottomright'});
+  legend.onAdd = function() {
+    const div = L.DomUtil.create('div', 'map-legend');
+    div.style.cssText = 'background:white;padding:8px 12px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.2);font-size:12px;line-height:1.6;max-width:260px;';
+    div.innerHTML = items.map(item => {
+      if (item.type === 'circle') {
+        return `<div style="display:flex;align-items:center;gap:6px;">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${item.color};opacity:0.6;flex-shrink:0;"></span>
+          <span>${item.label}</span>
+        </div>`;
+      } else if (item.type === 'line') {
+        return `<div style="display:flex;align-items:center;gap:6px;">
+          <span style="display:inline-block;width:20px;height:3px;background:${item.color};flex-shrink:0;"></span>
+          <span>${item.label}</span>
+        </div>`;
+      }
+      return `<div style="font-weight:600;margin-top:4px;font-size:13px;">${item.label}</div>`;
+    }).join('');
+    return div;
+  };
+  legend.addTo(map);
+  map._legendControl = legend;
+}
+
+function addStationMarkers(map, stations, color='#1a73e8', radius=6) {
+  stations.forEach(s => {
+    L.circleMarker([s.lat, s.lng], {
+      radius, color, fillColor: color, fillOpacity: 0.8, weight: 2, opacity: 1
+    }).addTo(map).bindTooltip(s.name || '', {direction:'top'});
+  });
+}
+
+function addCoverageCircle(map, lat, lng, km, color='#1a73e8') {
+  L.circle([lat, lng], { radius: km*1000, color, fillColor: color, fillOpacity: 0.05, weight: 1, opacity: 0.2 }).addTo(map);
+}
+
+
+// ================================================================
+// 启动
+// ================================================================
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

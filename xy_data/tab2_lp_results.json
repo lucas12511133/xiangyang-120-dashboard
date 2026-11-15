@@ -1,0 +1,634 @@
+{
+  "8min_80%": {
+    "status": "Optimal",
+    "n_stations": 4,
+    "n_covered": 188,
+    "n_total": 400,
+    "actual_coverage_pct": 85.3,
+    "stations": [
+      {
+        "grid_idx": 552,
+        "grid_a": 10,
+        "grid_b": 32,
+        "lat": 32.00546,
+        "lng": 112.15541,
+        "demand": 77
+      },
+      {
+        "grid_idx": 759,
+        "grid_a": 14,
+        "grid_b": 31,
+        "lat": 32.0342,
+        "lng": 112.14694,
+        "demand": 368
+      },
+      {
+        "grid_idx": 864,
+        "grid_a": 16,
+        "grid_b": 32,
+        "lat": 32.04858,
+        "lng": 112.15541,
+        "demand": 329
+      },
+      {
+        "grid_idx": 1072,
+        "grid_a": 20,
+        "grid_b": 32,
+        "lat": 32.07732,
+        "lng": 112.15541,
+        "demand": 72
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 8
+  },
+  "8min_90%": {
+    "status": "Optimal",
+    "n_stations": 6,
+    "n_covered": 228,
+    "n_total": 400,
+    "actual_coverage_pct": 90.1,
+    "stations": [
+      {
+        "grid_idx": 546,
+        "grid_a": 10,
+        "grid_b": 26,
+        "lat": 32.00546,
+        "lng": 112.10456,
+        "demand": 165
+      },
+      {
+        "grid_idx": 657,
+        "grid_a": 12,
+        "grid_b": 33,
+        "lat": 32.01983,
+        "lng": 112.16388,
+        "demand": 117
+      },
+      {
+        "grid_idx": 759,
+        "grid_a": 14,
+        "grid_b": 31,
+        "lat": 32.0342,
+        "lng": 112.14694,
+        "demand": 368
+      },
+      {
+        "grid_idx": 864,
+        "grid_a": 16,
+        "grid_b": 32,
+        "lat": 32.04858,
+        "lng": 112.15541,
+        "demand": 329
+      },
+      {
+        "grid_idx": 914,
+        "grid_a": 17,
+        "grid_b": 30,
+        "lat": 32.05576,
+        "lng": 112.13846,
+        "demand": 252
+      },
+      {
+        "grid_idx": 1019,
+        "grid_a": 19,
+        "grid_b": 31,
+        "lat": 32.07014,
+        "lng": 112.14694,
+        "demand": 182
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 8
+  },
+  "8min_95%": {
+    "status": "Optimal",
+    "n_stations": 9,
+    "n_covered": 265,
+    "n_total": 400,
+    "actual_coverage_pct": 95.0,
+    "stations": [
+      {
+        "grid_idx": 546,
+        "grid_a": 10,
+        "grid_b": 26,
+        "lat": 32.00546,
+        "lng": 112.10456,
+        "demand": 165
+      },
+      {
+        "grid_idx": 595,
+        "grid_a": 11,
+        "grid_b": 23,
+        "lat": 32.01264,
+        "lng": 112.07914,
+        "demand": 4
+      },
+      {
+        "grid_idx": 657,
+        "grid_a": 12,
+        "grid_b": 33,
+        "lat": 32.01983,
+        "lng": 112.16388,
+        "demand": 117
+      },
+      {
+        "grid_idx": 759,
+        "grid_a": 14,
+        "grid_b": 31,
+        "lat": 32.0342,
+        "lng": 112.14694,
+        "demand": 368
+      },
+      {
+        "grid_idx": 864,
+        "grid_a": 16,
+        "grid_b": 32,
+        "lat": 32.04858,
+        "lng": 112.15541,
+        "demand": 329
+      },
+      {
+        "grid_idx": 914,
+        "grid_a": 17,
+        "grid_b": 30,
+        "lat": 32.05576,
+        "lng": 112.13846,
+        "demand": 252
+      },
+      {
+        "grid_idx": 1019,
+        "grid_a": 19,
+        "grid_b": 31,
+        "lat": 32.07014,
+        "lng": 112.14694,
+        "demand": 182
+      },
+      {
+        "grid_idx": 1172,
+        "grid_a": 22,
+        "grid_b": 28,
+        "lat": 32.0917,
+        "lng": 112.12151,
+        "demand": 103
+      },
+      {
+        "grid_idx": 1213,
+        "grid_a": 23,
+        "grid_b": 17,
+        "lat": 32.09888,
+        "lng": 112.0283,
+        "demand": 2
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 8
+  },
+  "10min_80%": {
+    "status": "Optimal",
+    "n_stations": 1,
+    "n_covered": 166,
+    "n_total": 400,
+    "actual_coverage_pct": 81.5,
+    "stations": [
+      {
+        "grid_idx": 759,
+        "grid_a": 14,
+        "grid_b": 31,
+        "lat": 32.0342,
+        "lng": 112.14694,
+        "demand": 368
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 10
+  },
+  "10min_90%": {
+    "status": "Optimal",
+    "n_stations": 3,
+    "n_covered": 249,
+    "n_total": 400,
+    "actual_coverage_pct": 92.7,
+    "stations": [
+      {
+        "grid_idx": 600,
+        "grid_a": 11,
+        "grid_b": 28,
+        "lat": 32.01264,
+        "lng": 112.12151,
+        "demand": 189
+      },
+      {
+        "grid_idx": 864,
+        "grid_a": 16,
+        "grid_b": 32,
+        "lat": 32.04858,
+        "lng": 112.15541,
+        "demand": 329
+      },
+      {
+        "grid_idx": 1167,
+        "grid_a": 22,
+        "grid_b": 23,
+        "lat": 32.0917,
+        "lng": 112.07914,
+        "demand": 3
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 10
+  },
+  "10min_95%": {
+    "status": "Optimal",
+    "n_stations": 4,
+    "n_covered": 279,
+    "n_total": 400,
+    "actual_coverage_pct": 96.5,
+    "stations": [
+      {
+        "grid_idx": 595,
+        "grid_a": 11,
+        "grid_b": 23,
+        "lat": 32.01264,
+        "lng": 112.07914,
+        "demand": 4
+      },
+      {
+        "grid_idx": 759,
+        "grid_a": 14,
+        "grid_b": 31,
+        "lat": 32.0342,
+        "lng": 112.14694,
+        "demand": 368
+      },
+      {
+        "grid_idx": 1113,
+        "grid_a": 21,
+        "grid_b": 21,
+        "lat": 32.08451,
+        "lng": 112.06219,
+        "demand": 7
+      },
+      {
+        "grid_idx": 1123,
+        "grid_a": 21,
+        "grid_b": 31,
+        "lat": 32.08451,
+        "lng": 112.14694,
+        "demand": 38
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 10
+  },
+  "12min_80%": {
+    "status": "Optimal",
+    "n_stations": 1,
+    "n_covered": 215,
+    "n_total": 400,
+    "actual_coverage_pct": 89.4,
+    "stations": [
+      {
+        "grid_idx": 863,
+        "grid_a": 16,
+        "grid_b": 31,
+        "lat": 32.04858,
+        "lng": 112.14694,
+        "demand": 308
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 12
+  },
+  "12min_90%": {
+    "status": "Optimal",
+    "n_stations": 2,
+    "n_covered": 267,
+    "n_total": 400,
+    "actual_coverage_pct": 94.2,
+    "stations": [
+      {
+        "grid_idx": 546,
+        "grid_a": 10,
+        "grid_b": 26,
+        "lat": 32.00546,
+        "lng": 112.10456,
+        "demand": 165
+      },
+      {
+        "grid_idx": 914,
+        "grid_a": 17,
+        "grid_b": 30,
+        "lat": 32.05576,
+        "lng": 112.13846,
+        "demand": 252
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 12
+  },
+  "12min_95%": {
+    "status": "Optimal",
+    "n_stations": 3,
+    "n_covered": 310,
+    "n_total": 400,
+    "actual_coverage_pct": 97.7,
+    "stations": [
+      {
+        "grid_idx": 595,
+        "grid_a": 11,
+        "grid_b": 23,
+        "lat": 32.01264,
+        "lng": 112.07914,
+        "demand": 4
+      },
+      {
+        "grid_idx": 864,
+        "grid_a": 16,
+        "grid_b": 32,
+        "lat": 32.04858,
+        "lng": 112.15541,
+        "demand": 329
+      },
+      {
+        "grid_idx": 1113,
+        "grid_a": 21,
+        "grid_b": 21,
+        "lat": 32.08451,
+        "lng": 112.06219,
+        "demand": 7
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 12
+  },
+  "15min_80%": {
+    "status": "Optimal",
+    "n_stations": 1,
+    "n_covered": 230,
+    "n_total": 400,
+    "actual_coverage_pct": 92.5,
+    "stations": [
+      {
+        "grid_idx": 858,
+        "grid_a": 16,
+        "grid_b": 26,
+        "lat": 32.04858,
+        "lng": 112.10456,
+        "demand": 117
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 15
+  },
+  "15min_90%": {
+    "status": "Optimal",
+    "n_stations": 1,
+    "n_covered": 230,
+    "n_total": 400,
+    "actual_coverage_pct": 92.5,
+    "stations": [
+      {
+        "grid_idx": 858,
+        "grid_a": 16,
+        "grid_b": 26,
+        "lat": 32.04858,
+        "lng": 112.10456,
+        "demand": 117
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 15
+  },
+  "15min_95%": {
+    "status": "Optimal",
+    "n_stations": 2,
+    "n_covered": 314,
+    "n_total": 400,
+    "actual_coverage_pct": 97.2,
+    "stations": [
+      {
+        "grid_idx": 692,
+        "grid_a": 13,
+        "grid_b": 16,
+        "lat": 32.02702,
+        "lng": 112.01982,
+        "demand": 3
+      },
+      {
+        "grid_idx": 863,
+        "grid_a": 16,
+        "grid_b": 31,
+        "lat": 32.04858,
+        "lng": 112.14694,
+        "demand": 308
+      }
+    ],
+    "method": "两阶段MILP优化",
+    "same_grid_estimation": {
+      "method": "empirical_median_of_real_same_grid_calls",
+      "not_api_observation": true,
+      "grid_to_grid_rows": 20592,
+      "station_by_weekday_rows": 672,
+      "note": "同格耗时使用真实同格出车的独立中位数经验估计，不是API实测；非同格沿用API校准。",
+      "validation": {
+        "n": 997,
+        "MAE": 2.341165162153126,
+        "RMSE": 3.718393204682561,
+        "Bias": -0.3888582413908394,
+        "R2": -0.12351368794858608,
+        "observed10_pct": 94.28284854563691,
+        "predicted10_pct": 100.0
+      }
+    },
+    "delta_min": 0,
+    "drive_threshold": 15
+  }
+}
