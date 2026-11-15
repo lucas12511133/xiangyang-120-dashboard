@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.log
+*.xls
+*.xlsx
+*.csv
+*.pkl
+*.zip
+*.tar.gz
+data_raw/
+xy_compile/
+xy_weekly_output*/
+xy_calls_*
